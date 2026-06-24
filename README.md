@@ -59,7 +59,7 @@ Use **"Test connection"** to verify, then sync runs automatically on startup and
 ## Mobile notes
 
 - Mobile apps suspend in the background, so on phones/tablets syncing happens **when you open Obsidian** (and while it stays in the foreground), not continuously.
-- The first sync downloads cover images, which can use mobile data. (A data-saver / text-only mode is planned.)
+- The first sync downloads cover images, which can use mobile data.
 
 ## Development
 
