@@ -11,7 +11,7 @@ This plugin talks to a remote server. Please read this before installing.
 - **Server it connects to:** `https://inkclaw-cb.elefeed.com` (fixed; the Inklaw backend).
 - **Authentication:** it sends a personal **sync token** (HTTP `Authorization: Bearer <token>`) that you obtain from your own Inklaw account. You need an Inklaw account for this plugin to do anything.
 - **What is transmitted:**
-  - **Outbound:** your sync token (for authentication) and a numeric cursor (the id of the last note you already pulled).
+  - **Outbound:** your sync token (for authentication) — plus any **team sync keys** you add — and a numeric cursor per library (the id of the last note you already pulled).
   - **Inbound:** the notes **you** created by forwarding content to Inklaw — their Markdown text and media files (cover images, etc.).
 - **What is NOT transmitted:** the plugin only **writes** notes into your vault. It never reads, scans, or uploads any of your existing vault content. No analytics or telemetry of any kind is collected.
 - **Where data is stored:** notes and media are written to a folder in your vault that you choose (default `Inklaw/`). Your token and the sync cursor are stored locally in the plugin's `data.json`.
@@ -43,11 +43,22 @@ Open **Settings → Inklaw Sync** and fill in:
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | Token | *(empty)* | Your personal sync token (the only thing you need to fill in) |
+| Team libraries | *(none)* | Optional. One team sync key per team; each team library is written to its own folder |
 | Target folder | `Inklaw` | Where notes are written |
 | Attachments folder | `attachments` | Subfolder for cover images / media |
 | Auto-sync | **off** (manual) | Off: pull only when you click. On: pull on startup and every 60 s. |
 
 **By default, syncing is manual.** After setting your token, pull notes whenever you want with the ribbon **🔄** icon, the **"Sync now"** command, or the **Sync** button in settings. Use **"Test connection"** to confirm your token works. If you'd rather it pull automatically every 60 seconds, turn on **Auto-sync** in settings — best for a single device.
+
+## Team libraries (0.8.0+)
+
+If you are in an Inklaw **team**, the team library can be pulled into your vault as well:
+
+1. In the Inklaw mini program, open **我的 → your team → 团队同步** and copy the **team sync key** (every member can use the same key).
+2. In **Settings → Inklaw Sync → 团队库**, click **添加团队库** and paste the key. Each team library is written to its own folder (default `Inklaw 团队`), separate from your personal notes, with its own cursor.
+3. Use **测试连接** next to the key to check it. If the team's admin resets the key, paste the new one — the plugin starts that library from scratch and cleans up the old cursor.
+
+**Sync now** and **Auto-sync** pull your personal library and every team library in one go. You can also leave the personal token empty and sync only team libraries.
 
 ## How syncing works
 
@@ -79,4 +90,4 @@ Releases are produced automatically by GitHub Actions when a tag matching the ma
 
 ### 中文简介
 
-把你转发给 **墨爪 Inklaw** 的内容(自动转录+精校后的笔记)自动同步进 Obsidian,连同封面等媒体。**电脑、手机都能用**。需要墨爪账号 + 同步 token(微信里给墨爪发 `obsidian` 获取)。插件**只往 vault 写笔记,绝不读取/上传你的其它内容**,无任何埋点。每台设备独立同步,不依赖 iCloud;若你用 iCloud/Obsidian Sync 共享同一 vault,则**只在一台设备开启**以免双写冲突。
+把你转发给 **墨爪 Inklaw** 的内容(自动转录+精校后的笔记)自动同步进 Obsidian,连同封面等媒体。**电脑、手机都能用**。需要墨爪账号 + 同步 token(微信里给墨爪发 `obsidian` 获取)。**0.8.0 起支持团队库**:在小程序「团队同步」复制团队密钥,插件设置里「添加团队库」粘上,团队库写进单独目录。插件**只往 vault 写笔记,绝不读取/上传你的其它内容**,无任何埋点。每台设备独立同步,不依赖 iCloud;若你用 iCloud/Obsidian Sync 共享同一 vault,则**只在一台设备开启**以免双写冲突。
