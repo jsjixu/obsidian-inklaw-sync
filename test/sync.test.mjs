@@ -7,7 +7,15 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { syncOnce, rewriteEmbeds, stripEmbeds } from "../src/sync.mjs";
+import {
+  syncOnce,
+  rewriteEmbeds,
+  stripEmbeds,
+  planSources,
+  pruneTeamCursors,
+  defaultTeamFolder,
+  PERSONAL_KEY,
+} from "../src/sync.mjs";
 
 /** 造一个 mock 依赖集合 + 调用记录。 */
 function makeHarness(payload, opts = {}) {
@@ -287,4 +295,45 @@ test("rewriteEmbeds: 空附件目录或空 media → 原样返回", () => {
 test("rewriteEmbeds: 尾斜杠规范化(attachments/ → attachments/cover.jpg,不出现双斜杠)", () => {
   const out = rewriteEmbeds("![[cover.jpg]]", [{ local_name: "cover.jpg" }], "attachments/");
   assert.equal(out, "![[attachments/cover.jpg]]");
+});
+
+test("planSources: 个人 + 团队库,去空白 / 跳过空 token / 默认目录 / 各自 key", () => {
+  const got = planSources({
+    token: " tok-me ",
+    targetFolder: "Inklaw",
+    teamSources: [
+      { token: " ikt-A ", folder: "" },
+      { token: "", folder: "空的不同步" },
+      { token: "ikt-B", folder: "产品组" },
+    ],
+  });
+  assert.deepEqual(got, [
+    { key: PERSONAL_KEY, kind: "personal", token: "tok-me", folder: "Inklaw", label: "个人" },
+    { key: "team:ikt-A", kind: "team", token: "ikt-A", folder: "Inklaw 团队", label: "团队库 1" },
+    { key: "team:ikt-B", kind: "team", token: "ikt-B", folder: "产品组", label: "团队库 3" },
+  ]);
+});
+
+test("planSources: 只填团队库也能用;同一密钥只同步一次(个人优先)", () => {
+  const onlyTeam = planSources({ token: "", targetFolder: "", teamSources: [{ token: "ikt-A" }] });
+  assert.equal(onlyTeam.length, 1);
+  assert.equal(onlyTeam[0].kind, "team");
+  assert.equal(onlyTeam[0].folder, "Inklaw 团队");
+  const dup = planSources({ token: "same", teamSources: [{ token: "same" }, { token: "ikt-A" }, { token: "ikt-A" }] });
+  assert.deepEqual(dup.map((x) => x.key), [PERSONAL_KEY, "team:ikt-A"]);
+  assert.deepEqual(planSources(null), []);
+  assert.deepEqual(planSources({ teamSources: "not-an-array" }), []);
+});
+
+test("defaultTeamFolder: 第 2 个起加序号,去尾斜杠,空目录回落 Inklaw", () => {
+  assert.equal(defaultTeamFolder("Inklaw", 0), "Inklaw 团队");
+  assert.equal(defaultTeamFolder("笔记/墨爪/", 1), "笔记/墨爪 团队 2");
+  assert.equal(defaultTeamFolder("", 2), "Inklaw 团队 3");
+});
+
+test("pruneTeamCursors: 移除的团队库 / 换掉的旧密钥,游标一并清;个人游标不在这张表里", () => {
+  const sources = planSources({ token: "me", teamSources: [{ token: "ikt-new" }] });
+  const out = pruneTeamCursors({ "team:ikt-old": 9, "team:ikt-new": 5 }, sources);
+  assert.deepEqual(out, { "team:ikt-new": 5 });
+  assert.deepEqual(pruneTeamCursors(undefined, sources), {});
 });

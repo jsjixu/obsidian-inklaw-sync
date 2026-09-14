@@ -63,3 +63,37 @@ export function stripEmbeds(
  * 执行一次同步,返回(已持久化的)新游标。单条失败不影响整批,fetch 失败不崩。
  */
 export function syncOnce(deps: SyncDeps): Promise<number>;
+
+/** 设置里的一个团队库(0.8.0):团队密钥 + 写入目录。 */
+export interface TeamSource {
+  token: string;
+  folder: string;
+}
+
+/** 本轮要同步的一个来源(planSources 产出)。 */
+export interface SyncSource {
+  key: string;
+  kind: "personal" | "team";
+  token: string;
+  folder: string;
+  label: string;
+}
+
+/** 个人库来源的游标 key。 */
+export const PERSONAL_KEY: "personal";
+
+/** 团队库默认写入目录:「<个人目录> 团队」,第 2 个起加序号。 */
+export function defaultTeamFolder(personalFolder: string, index: number): string;
+
+/** 个人 token + 团队库列表 → 本轮同步来源(去空、去重、默认目录)。 */
+export function planSources(settings: {
+  token?: string;
+  targetFolder?: string;
+  teamSources?: Array<Partial<TeamSource>>;
+}): SyncSource[];
+
+/** 只保留当前还在的团队库游标。 */
+export function pruneTeamCursors(
+  cursors: Record<string, number>,
+  sources: Array<Pick<SyncSource, "key" | "kind">>
+): Record<string, number>;

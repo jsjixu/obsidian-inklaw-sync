@@ -255,3 +255,70 @@ export async function syncOnce(deps) {
   }
   return maxOk;
 }
+
+/** 个人库来源的游标 key(个人游标沿用 data.cursor 老字段,升级零迁移)。 */
+export const PERSONAL_KEY = 'personal';
+
+/**
+ * 团队库的默认写入目录:「<个人目录> 团队」,第 2 个起加序号(「Inklaw 团队 2」)。
+ * @param {string} personalFolder 个人笔记目录
+ * @param {number} index 团队库序号(0 起)
+ * @returns {string}
+ */
+export function defaultTeamFolder(personalFolder, index) {
+  const base = (personalFolder == null ? '' : String(personalFolder)).trim().replace(/\/+$/, '') || 'Inklaw';
+  const i = Number(index) || 0;
+  return base + ' 团队' + (i > 0 ? ' ' + (i + 1) : '');
+}
+
+/**
+ * 把设置里的「个人 token + 团队库列表」整理成本轮要同步的来源清单(0.8.0 起支持团队库)。
+ * 每个来源 = { key, kind: 'personal'|'team', token, folder, label }。规则:
+ *   - token 去首尾空白,空的跳过(只填了团队库、没填个人 token 也能用);
+ *   - 同一 token 只同步一次(个人优先,团队库按顺序先到先得)—— 否则同一批笔记写两份;
+ *   - 团队库目录为空 → defaultTeamFolder;
+ *   - key:个人 = PERSONAL_KEY;团队 = 'team:' + token(管理员重置密钥 = 新 key = 从头拉,旧游标由 pruneTeamCursors 清)。
+ * 纯函数,无副作用。
+ *
+ * @param {{token?: string, targetFolder?: string, teamSources?: Array<{token?: string, folder?: string}>}} settings
+ * @returns {Array<{key: string, kind: string, token: string, folder: string, label: string}>}
+ */
+export function planSources(settings) {
+  const s = settings || {};
+  const out = [];
+  const seen = new Set();
+  const personalFolder = (s.targetFolder == null ? '' : String(s.targetFolder)).trim() || 'Inklaw';
+  const pt = (s.token == null ? '' : String(s.token)).trim();
+  if (pt) {
+    seen.add(pt);
+    out.push({ key: PERSONAL_KEY, kind: 'personal', token: pt, folder: personalFolder, label: '个人' });
+  }
+  const list = Array.isArray(s.teamSources) ? s.teamSources : [];
+  list.forEach((t, i) => {
+    const tok = t && t.token != null ? String(t.token).trim() : '';
+    if (!tok || seen.has(tok)) {
+      return;
+    }
+    seen.add(tok);
+    const folder = (t.folder == null ? '' : String(t.folder)).trim() || defaultTeamFolder(personalFolder, i);
+    out.push({ key: 'team:' + tok, kind: 'team', token: tok, folder, label: '团队库 ' + (i + 1) });
+  });
+  return out;
+}
+
+/**
+ * 只保留当前还在的团队库游标(移除的团队库 / 换掉的旧密钥,游标一并清)。纯函数,返回新对象。
+ * @param {Record<string, number>} cursors data.teamCursors
+ * @param {Array<{key: string, kind: string}>} sources planSources 的结果
+ * @returns {Record<string, number>}
+ */
+export function pruneTeamCursors(cursors, sources) {
+  const keep = new Set((sources || []).filter((x) => x && x.kind === 'team').map((x) => x.key));
+  const out = {};
+  for (const k of Object.keys(cursors || {})) {
+    if (keep.has(k)) {
+      out[k] = cursors[k];
+    }
+  }
+  return out;
+}
